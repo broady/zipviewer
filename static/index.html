@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+<script>
+  var filecache = {};
+  $(function() {
+    var url = '/zip?url=' + encodeURIComponent(location.search.substring(1));
+    $.get(url, function(r) {
+      if (typeof r != 'object') {
+        r = JSON.parse(r);
+      }
+      display(r);
+    });
+    $('#files').on('click', 'li.file', function() {
+      var file = $(this).data('name');
+      if (filecache[file]) {
+        $('#view').text(filecache[file]);
+        return;
+      }
+      var url = '/file?url=' + encodeURIComponent(location.search.substring(1)) + '&file=' + encodeURIComponent(file);
+      $.get(url, function(r) {
+        if (typeof r != 'object') {
+          r = JSON.parse(r);
+        }
+        $('#view').text(filecache[file] = atob(r.Content));
+      });
+    });
+    $('#files').on('click', 'li.dir', function(e) {
+      if (!$(e.target).hasClass('dir')) return;
+      $(e.target).toggleClass('collapsed');
+      e.stopPropagation();
+    });
+  });
+
+  function display(zip) {
+    var tree = listToTree(zip.Files);
+    appendChildren('', $('#files'), tree, false);
+  }
+
+  function appendChildren(path, root, tree, collapse) {
+    for (var f in tree) {
+      var li = $('<li>').text(f).appendTo(root);
+      li.data('name', path + f);
+      if (typeof tree[f] == 'object') {
+        appendChildren(path + f + '/', $('<ul>').appendTo(li), tree[f], true);
+        li.addClass('dir');
+        if (collapse) {
+          li.addClass('collapsed');
+        }
+      } else {
+        li.addClass('file');
+      }
+    }
+  }
+
+  function listToTree(files) {
+    var root = {};
+    for (var i = 0; i < files.length; i++) {
+      var parts = files[i].split('/');
+      var cwd = root;
+      for (var j = 0; j < parts.length - 1; j++) {
+        cwd[parts[j]] = cwd[parts[j]] || {};
+        cwd = cwd[parts[j]];
+      }
+      cwd[parts[j]] = files[i];
+    }
+    return root;
+  }
+</script>
+
+<style>
+  body {
+    font-family: "Open Sans", sans-serif;
+    font-size: 13px;
+    margin: 0;
+    padding: 0;
+  }
+  #files {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 300px;
+    bottom: 0;
+    overflow: scroll;
+  }
+  #view {
+    position: fixed;
+    top: 0;
+    left: 320px;
+    right: 0;
+    bottom: 0;
+    overflow: scroll;
+  }
+  ul {
+    padding-left: 15px;
+    list-style-type: none;
+  }
+  li.dir:before {
+    content: '–';
+    padding-right: 5px;
+  }
+  li {
+    cursor: pointer;
+  }
+  li.file:hover {
+    background: #ccc;
+  }
+  li.collapsed ul {
+    display: none;
+  }
+  li.collapsed:before {
+    content: '+';
+  }
+</style>
+<ul id="files"></div>
+<pre id="view"></div>
